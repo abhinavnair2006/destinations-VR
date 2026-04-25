@@ -33,7 +33,7 @@ router.get('/:id/weather', async (req, res) => {
 
     const { lat, lon } = destination.coordinates;
     const apiKey = process.env.WEATHER_API_KEY;
-    
+
     console.log(`Fetching weather for ${destination.name} using key: ${apiKey?.substring(0, 4)}...`);
 
     // if (!apiKey || apiKey === '31151650bcc4c8565e1f4f529c573085') {
@@ -48,9 +48,9 @@ router.get('/:id/weather', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error('Weather API Error:', error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({ 
+    res.status(error.response?.status || 500).json({
       message: 'Failed to fetch weather',
-      error: error.response?.data?.message || error.message 
+      error: error.response?.data?.message || error.message
     });
   }
 });
@@ -62,16 +62,16 @@ router.post('/search', async (req, res) => {
 
   try {
     const apiKey = process.env.WEATHER_API_KEY;
-    
+
     // 1. Geocoding - Using OpenStreetMap's Nominatim (Free, no key required)
     let lat, lon, country, cityName;
-    
+
     try {
       console.log(`Searching for city: ${query}`);
       const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`, {
         headers: { 'User-Agent': 'VR-Tourism-App' }
       });
-      
+
       if (geoRes.data && geoRes.data.length > 0) {
         const cityData = geoRes.data[0];
         lat = parseFloat(cityData.lat);
@@ -85,18 +85,47 @@ router.post('/search', async (req, res) => {
       console.error('Geocoding failed:', e.message);
       // Last resort fallback
       cityName = query.charAt(0).toUpperCase() + query.slice(1);
-      lat = 40.7128; 
+      lat = 40.7128;
       lon = -74.0060;
       country = 'Unknown';
     }
 
     // 2. Check if already exists
     let destination = await Destination.findOne({ name: cityName });
+
+    // 3. Get Images (Dynamic via Unsplash or Hardcoded Fallback)
+    let image360Url = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000&auto=format&fit=crop'; // Default fallback
+    let thumbnailUrl = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1000&auto=format&fit=crop';
+
+    const unsplashKey = process.env.UNSPLASH_ACCESS_KEY;
     
-    // Define the images for this city
-    let image360Url = `https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000&auto=format&fit=crop`; // Fallback
-    let thumbnailUrl = `https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1000&auto=format&fit=crop`;
-    
+    if (unsplashKey) {
+      try {
+        console.log(`Fetching dynamic images from Unsplash for: ${cityName}`);
+        // Search for a high-quality panoramic/wide landscape image
+        const unsplashRes = await axios.get(`https://api.unsplash.com/search/photos`, {
+          params: { 
+            query: `${cityName} city skyline panoramic landscape`, 
+            orientation: 'landscape', 
+            per_page: 1,
+            content_filter: 'high'
+          },
+          headers: { Authorization: `Client-ID ${unsplashKey}` }
+        });
+
+        if (unsplashRes.data.results && unsplashRes.data.results.length > 0) {
+          const photo = unsplashRes.data.results[0];
+          // Use a higher width for the 360 experience to prevent blurriness
+          image360Url = photo.urls.full + '&q=90&w=4000&auto=format&fit=crop';
+          thumbnailUrl = photo.urls.regular + '&q=80&w=1000&auto=format&fit=crop';
+          console.log('Successfully fetched dynamic image from Unsplash.');
+        }
+      } catch (unsplashErr) {
+        console.error('Unsplash API failed:', unsplashErr.message);
+      }
+    }
+
+    // Check hardcoded for curated experiences
     const lowerQuery = query.toLowerCase();
     if (lowerQuery.includes('london')) {
       image360Url = 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?q=80&w=2000&auto=format&fit=crop';
@@ -108,11 +137,11 @@ router.post('/search', async (req, res) => {
       image360Url = 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=2000&auto=format&fit=crop';
       thumbnailUrl = 'https://images.unsplash.com/photo-1529260839382-3eff352c0e27?q=80&w=1000&auto=format&fit=crop';
     } else if (lowerQuery.includes('mumbai') || lowerQuery.includes('bombay')) {
-      image360Url = 'https://images.unsplash.com/photo-1570160897040-30430ed22112?q=80&w=2000&auto=format&fit=crop';
-      thumbnailUrl = 'https://images.unsplash.com/photo-1566552881560-0be862a7c445?q=80&w=1000&auto=format&fit=crop';
+      image360Url = 'https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?q=80&w=2000&auto=format&fit=crop';
+      thumbnailUrl = 'https://images.unsplash.com/photo-1529253355930-ddbe423a2ac7?q=80&w=1000&auto=format&fit=crop';
     } else if (lowerQuery.includes('sydney')) {
       image360Url = 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?q=80&w=2000&auto=format&fit=crop';
-      thumbnailUrl = 'https://images.unsplash.com/photo-1523413651479-597eb2da0ad6?q=80&w=1000&auto=format&fit=crop';
+      thumbnailUrl = 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?q=80&w=1000&auto=format&fit=crop';
     }
 
     if (!destination) {
@@ -131,8 +160,6 @@ router.post('/search', async (req, res) => {
       destination.thumbnailUrl = thumbnailUrl;
       await destination.save();
     }
-
-    res.json(destination);
 
     res.json(destination);
   } catch (error) {

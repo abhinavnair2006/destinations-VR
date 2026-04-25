@@ -47,23 +47,23 @@ function VRViewer() {
         renderer="antialias: true; colorManagement: true;"
         loading-screen="enabled: false"
       >
-        <a-assets timeout="10000">
+        <a-assets timeout="15000">
           <img id="sky-texture" src={destination.image360Url} crossOrigin="anonymous" />
         </a-assets>
 
-        {/* The 360 image sphere with a subtle rotation to make the world feel alive */}
+        {/* --- HIGH-QUALITY 360 IMMERSIVE ENVIRONMENT --- */}
+        {/* We use a large radius to minimize distortion and shader:flat for maximum clarity */}
         <a-sky 
           src="#sky-texture" 
-          radius="1000"
+          radius="500"
           rotation="0 -90 0"
-          material="shader: flat; side: back; src: #sky-texture"
-          animation="property: rotation; to: 0 270 0; dur: 500000; easing: linear; loop: true"
+          material="shader: flat; side: back; src: #sky-texture; npot: true"
+          animation="property: rotation; to: 0 270 0; dur: 600000; easing: linear; loop: true"
         ></a-sky>
 
-        {/* Cinematic Lighting */}
-        <a-light type="ambient" color="#FFF" intensity="0.8"></a-light>
+        {/* Global Atmosphere Lighting - Boosted for better visibility */}
+        <a-light type="ambient" color="#FFF" intensity="1.5"></a-light>
         <a-light type="directional" color="#FFF" intensity="0.5" position="-1 4 3"></a-light>
-        <a-light type="point" color="#0ea5e9" intensity="0.3" position="2 4 -3"></a-light>
 
         {/* Camera with interactive cursor */}
         <a-camera look-controls="reverseMouseDrag: true" position="0 1.6 0">
@@ -74,7 +74,7 @@ function VRViewer() {
         </a-camera>
       </a-scene>
 
-      {/* Modern Glassmorphism UI Overlay */}
+      {/* --- PREMIUM UI OVERLAY --- */}
       <div className="vr-interface">
         <div className="vr-top-nav">
           <Link to="/" className="glass-btn back-link">
